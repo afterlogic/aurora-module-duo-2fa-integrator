@@ -13,9 +13,8 @@ use Duo\DuoUniversal\Client;
 use Duo\DuoUniversal\DuoException;
 use Aurora\System\Router;
 use Aurora\System\Session;
-use DuoUsers;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
-include_once 'users.php';
 
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
@@ -87,6 +86,11 @@ class Module extends \Aurora\System\Module\AbstractModule
         return $this->client;
     }
 
+    protected function getDuoUserNameByUserPublicId($userPublicId)
+    {
+        return Capsule::connection()->table('duo_users')->where('PublicId', $userPublicId)->pluck('DuoUserName')->first();
+    }
+
     /**
      * @param array $aArgs
      * @param array $mResult
@@ -118,7 +122,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                     Session::Set("AuthToken", $authToken);
 
                     $username = $oUser->PublicId;
-                    $username = DuoUsers::getUser($username);
+                    $username = $this->getDuoUserNameByUserPublicId($username);
 
                     if (!empty($username)) {
                         # Redirect to prompt URI which will redirect to the client's redirect URI after 2FA
@@ -159,7 +163,7 @@ class Module extends \Aurora\System\Module\AbstractModule
             $oUser = Api::getAuthenticatedUser($authToken);
             if ($oUser) {
                 $username = $oUser->PublicId;
-                $username = DuoUsers::getUser($username);
+                $username = $this->getDuoUserNameByUserPublicId($username);
 
                 if (empty($saved_state) || empty($username)) {
                     # If the URL used to get to login.php is not localhost, (e.g. 127.0.0.1), then the sessions will be different
