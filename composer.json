@@ -10,6 +10,6 @@
 		"classmap": ["/"]
 	},
 	"extra": {
-		"installer-name": "Duo2FAInegrator"
+		"installer-name": "Duo2FAIntegrator"
 	}
 }
