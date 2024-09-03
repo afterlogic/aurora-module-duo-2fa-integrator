@@ -2,7 +2,7 @@
 	"name": "afterlogic/aurora-module-duo-2fa-integrator",
 	"type": "aurora-module",
 	"require": {
-		"php": ">=5.4.0",
+		"php": ">=7.4.0",
 		"afterlogic/aurora-framework": "~0.10.0",
 		"duosecurity/duo_universal_php": "^1.0"
 	},
