@@ -15,11 +15,10 @@ use Aurora\System\Router;
 use Aurora\System\Session;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
-
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
  * @license https://afterlogic.com/products/common-licensing Afterlogic Software License
- * @copyright Copyright (c) 2023, Afterlogic Corp.
+ * @copyright Copyright (c) 2024, Afterlogic Corp.
  *
  * @property Settings $oModuleSettings
  *
@@ -110,11 +109,11 @@ class Module extends \Aurora\System\Module\AbstractModule
                         Api::LogException($e);
                         $mResult = false;
                     }
-                
+
                     # Generate random string to act as a state for the exchange.
                     # Store it in the session to be later used by the callback.
-                    # This example demonstrates use of the http session (cookie-based) 
-                    # for storing the state. In some applications, strict cookie 
+                    # This example demonstrates use of the http session (cookie-based)
+                    # for storing the state. In some applications, strict cookie
                     # controls or other session security measures will mean a different
                     # mechanism to persist the state and username will be necessary.
                     $state = $client->generateState();
@@ -169,7 +168,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                     # If the URL used to get to login.php is not localhost, (e.g. 127.0.0.1), then the sessions will be different
                     # and the localhost session will not have the state.
                     $error = Enums\ErrorCodes::NoSavedState;
-                } else if ($state != $saved_state) { # Ensure nonce matches from initial request
+                } elseif ($state != $saved_state) { # Ensure nonce matches from initial request
                     $error = Enums\ErrorCodes::StateDoesNotMatch;
                 } else {
                     try {
