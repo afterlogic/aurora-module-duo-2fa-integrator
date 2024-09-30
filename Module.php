@@ -61,7 +61,7 @@ class Module extends \Aurora\System\Module\AbstractModule
             Enums\ErrorCodes::CallbackError	=> 'Callback error.',
         ];
 
-       Router::getInstance()->register(self::GetName(), 'duo-callback', [$this, 'EntryDuoCallback']);
+        Router::getInstance()->register(self::GetName(), 'duo-callback', [$this, 'EntryDuoCallback']);
 
         $this->subscribeEvent('Core::Login::after', [$this, 'onAfterLogin'], 200);
         $this->subscribeEvent('Core::Logout::after', [$this, 'onAfterLogout'], 200);
@@ -99,7 +99,7 @@ class Module extends \Aurora\System\Module\AbstractModule
     {
         if ($mResult && is_array($mResult) && isset($mResult['AuthToken'])) {
             $authToken = $mResult['AuthToken'];
-            $oUser = Api::getAuthenticatedUser($mResult['AuthToken']);
+            $oUser = Api::getAuthenticatedUser($authToken);
 
             if ($oUser instanceof User) {
                 $username = $this->getDuoUserNameByUserPublicId($oUser->PublicId);
@@ -178,7 +178,10 @@ class Module extends \Aurora\System\Module\AbstractModule
                         $decoded_token = $client->exchangeAuthorizationCodeFor2FAResult($code, $username);
 
                         \Aurora\Modules\Core\Module::Decorator()->SetAuthDataAndGetAuthToken($mAuthTokenData);
-                        Api::Location(\MailSo\Base\Http::SingletonInstance()->GetFullUrl());
+                        
+                        // the Location header doesn't work here because it doesn't change the referer header
+                        // with external site in referer header the strict cookies are not sent to backend by the browser
+                        echo '<html><head><meta http-equiv="refresh" content="0;url='.\MailSo\Base\Http::SingletonInstance()->GetFullUrl().'" /></head></html>';
                         exit;
                     } catch (DuoException $e) {
                         $error = Enums\ErrorCodes::ErrorDecoding;
