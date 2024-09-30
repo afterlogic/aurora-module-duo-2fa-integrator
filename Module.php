@@ -55,10 +55,11 @@ class Module extends \Aurora\System\Module\AbstractModule
     public function init()
     {
         $this->aErrors = [
-            Enums\ErrorCodes::NoSavedState	=> 'No saved state please login again',
-            Enums\ErrorCodes::StateDoesNotMatch	=> 'Duo state does not match saved state',
-            Enums\ErrorCodes::ErrorDecoding	=> 'Error decoding Duo result. Confirm device clock is correct.',
-            Enums\ErrorCodes::CallbackError	=> 'Callback error.',
+            Enums\ErrorCodes::NoSavedState => 'No saved state please login again',
+            Enums\ErrorCodes::StateDoesNotMatch => 'Duo state does not match saved state',
+            Enums\ErrorCodes::ErrorDecoding => 'Error decoding Duo result. Confirm device clock is correct.',
+            Enums\ErrorCodes::CallbackError => 'Callback error.',
+            Enums\ErrorCodes::NoAssociatedDuoUser => 'Duo user associated with current Aurora user is not found.',
         ];
 
         Router::getInstance()->register(self::GetName(), 'duo-callback', [$this, 'EntryDuoCallback']);
@@ -114,7 +115,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                             Api::LogException($e);
                             $mResult = false;
                         }
-    
+
                         # Generate random string to act as a state for the exchange.
                         # Store it in the session to be later used by the callback.
                         # This example demonstrates use of the http session (cookie-based)
@@ -157,39 +158,43 @@ class Module extends \Aurora\System\Module\AbstractModule
 
             $error = Enums\ErrorCodes::NoError;
 
-            $mAuthTokenData = Api::DecodeKeyValues($authToken);
-
-            $sPublicId = '';
-            if (isset($mAuthTokenData['id'])) {
-                $sPublicId = Api::getUserPublicIdById($mAuthTokenData['id']);
-            }
-            if ($sPublicId) {
-                $username = $this->getDuoUserNameByUserPublicId($sPublicId);
-
-                if (empty($saved_state) || empty($username)) {
-                    # If the URL used to get to login.php is not localhost, (e.g. 127.0.0.1), then the sessions will be different
-                    # and the localhost session will not have the state.
-                    $error = Enums\ErrorCodes::NoSavedState;
-                } elseif ($state != $saved_state) { # Ensure nonce matches from initial request
-                    $error = Enums\ErrorCodes::StateDoesNotMatch;
-                } else {
-                    try {
-                        $client =  $this->getClient();
-                        $decoded_token = $client->exchangeAuthorizationCodeFor2FAResult($code, $username);
-
-                        \Aurora\Modules\Core\Module::Decorator()->SetAuthDataAndGetAuthToken($mAuthTokenData);
-                        
-                        // the Location header doesn't work here because it doesn't change the referer header
-                        // with external site in referer header the strict cookies are not sent to backend by the browser
-                        echo '<html><head><meta http-equiv="refresh" content="0;url='.\MailSo\Base\Http::SingletonInstance()->GetFullUrl().'" /></head></html>';
-                        exit;
-                    } catch (DuoException $e) {
-                        $error = Enums\ErrorCodes::ErrorDecoding;
-                        Api::LogException($e);
-                    }
-                }
-            } else {
+            # If the URL used to get to login.php is not localhost, (e.g. 127.0.0.1), then the sessions will be different
+            # and the localhost session will not have the state.
+            if (empty($saved_state) || empty($authToken)) {
                 $error = Enums\ErrorCodes::NoSavedState;
+            } else {
+                $mAuthTokenData = Api::DecodeKeyValues($authToken);
+
+                $sPublicId = '';
+                if (isset($mAuthTokenData['id'])) {
+                    $sPublicId = Api::getUserPublicIdById($mAuthTokenData['id']);
+                }
+                if ($sPublicId) {
+                    $username = $this->getDuoUserNameByUserPublicId($sPublicId);
+
+                    if (empty($username)) {
+                        $error = Enums\ErrorCodes::NoAssociatedDuoUser;
+                    } elseif ($state != $saved_state) { # Ensure nonce matches from initial request
+                        $error = Enums\ErrorCodes::StateDoesNotMatch;
+                    } else {
+                        try {
+                            $client =  $this->getClient();
+                            $decoded_token = $client->exchangeAuthorizationCodeFor2FAResult($code, $username);
+
+                            \Aurora\Modules\Core\Module::Decorator()->SetAuthDataAndGetAuthToken($mAuthTokenData);
+
+                            // the Location header doesn't work here because it doesn't change the referer header
+                            // with external site in referer header the strict cookies are not sent to backend by the browser
+                            echo '<html><head><meta http-equiv="refresh" content="0;url=' . \MailSo\Base\Http::SingletonInstance()->GetFullUrl() . '" /></head></html>';
+                            exit;
+                        } catch (DuoException $e) {
+                            $error = Enums\ErrorCodes::ErrorDecoding;
+                            Api::LogException($e);
+                        }
+                    }
+                } else {
+                    $error = Enums\ErrorCodes::NoSavedState;
+                }
             }
         }
 

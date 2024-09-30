@@ -10,7 +10,7 @@ namespace Aurora\Modules\Duo2FAIntegrator\Enums;
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
  * @license https://afterlogic.com/products/common-licensing Afterlogic Software License
- * @copyright Copyright (c) 2023, Afterlogic Corp.
+ * @copyright Copyright (c) 2024, Afterlogic Corp.
  */
 class ErrorCodes
 {
@@ -19,6 +19,7 @@ class ErrorCodes
     public const StateDoesNotMatch = 2;
     public const ErrorDecoding = 3;
     public const CallbackError = 4;
+    public const NoAssociatedDuoUser = 5;
 
     /**
      * @var array
@@ -29,5 +30,6 @@ class ErrorCodes
         'StateDoesNotMatch' => self::StateDoesNotMatch,
         'ErrorDecoding' => self::ErrorDecoding,
         'CallbackError' => self::CallbackError,
+        'NoAssociatedDuoUser' => self::NoAssociatedDuoUser,
     ];
 }
