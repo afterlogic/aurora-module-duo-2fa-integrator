@@ -99,36 +99,32 @@ class Module extends \Aurora\System\Module\AbstractModule
         if ($mResult && is_array($mResult) && isset($mResult['AuthToken'])) {
             $authToken = $mResult['AuthToken'];
             $oUser = Api::getAuthenticatedUser($mResult['AuthToken']);
-            unset($mResult['AuthToken']);
             if ($oUser instanceof User) {
-                $client = $this->getClient();
-                if ($client) {
-                    try {
-                        $client->healthCheck();
-                    } catch (DuoException $e) {
-                        Api::LogException($e);
-                        $mResult = false;
-                    }
+                $username = $this->getDuoUserNameByUserPublicId($oUser->PublicId);
 
-                    # Generate random string to act as a state for the exchange.
-                    # Store it in the session to be later used by the callback.
-                    # This example demonstrates use of the http session (cookie-based)
-                    # for storing the state. In some applications, strict cookie
-                    # controls or other session security measures will mean a different
-                    # mechanism to persist the state and username will be necessary.
-                    $state = $client->generateState();
-                    Session::Set("State", $state);
-                    Session::Set("AuthToken", $authToken);
+                if (!empty($username)) {
+                    $client = $this->getClient();
+                    if ($client) {
+                        try {
+                            $client->healthCheck();
+                        } catch (DuoException $e) {
+                            Api::LogException($e);
+                            $mResult = false;
+                        }
 
-                    $username = $oUser->PublicId;
-                    $username = $this->getDuoUserNameByUserPublicId($username);
+                        # Generate random string to act as a state for the exchange.
+                        # Store it in the session to be later used by the callback.
+                        # This example demonstrates use of the http session (cookie-based)
+                        # for storing the state. In some applications, strict cookie
+                        # controls or other session security measures will mean a different
+                        # mechanism to persist the state and username will be necessary.
+                        $state = $client->generateState();
+                        Session::Set("State", $state);
+                        Session::Set("AuthToken", $authToken);
 
-                    if (!empty($username)) {
                         # Redirect to prompt URI which will redirect to the client's redirect URI after 2FA
                         $mResult['DuoUri'] = $client->createAuthUrl($username, $state);
-                    } else {
-                        Api::Log('Username not specified');
-                        $mResult = false;
+                        unset($mResult['AuthToken']);
                     }
                 }
             }
