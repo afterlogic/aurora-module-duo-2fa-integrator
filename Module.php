@@ -174,9 +174,17 @@ class Module extends \Aurora\System\Module\AbstractModule
                     try {
                         $client =  $this->getClient();
                         $decoded_token = $client->exchangeAuthorizationCodeFor2FAResult($code, $username);
-                        //dd($decoded_token);
-
-                        @setcookie(\Aurora\System\Application::AUTH_TOKEN_KEY, $authToken);
+                        
+                        $iAuthTokenCookieExpireTime = (int) \Aurora\Modules\Core\Module::getInstance()->getModuleSettings()->AuthTokenCookieExpireTime;
+                        @\setcookie(
+                            \Aurora\System\Application::AUTH_TOKEN_KEY,
+                            $authToken,
+                            [
+                                'expires' => ($iAuthTokenCookieExpireTime === 0) ? 0 : \strtotime("+$iAuthTokenCookieExpireTime days"),
+                                'path' => Api::getCookiePath(),
+                                'secure' => Api::getCookieSecure(),
+                            ]
+                        );
                         Api::Location(\MailSo\Base\Http::SingletonInstance()->GetFullUrl());
                     } catch (DuoException $e) {
                         $error = Enums\ErrorCodes::ErrorDecoding;
