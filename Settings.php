@@ -45,6 +45,12 @@ class Settings extends \Aurora\System\Module\Settings
                 null,
                 "The api-host found in the admin panel",
             ),
+            "IncludeInMobile" => new SettingsProperty(
+                true,
+                "bool",
+                null,
+                "If true, the module is used in mobile version of the interface"
+            ),
         ];
     }
 }
