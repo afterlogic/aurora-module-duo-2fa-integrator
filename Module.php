@@ -61,9 +61,10 @@ class Module extends \Aurora\System\Module\AbstractModule
             Enums\ErrorCodes::CallbackError	=> 'Callback error.',
         ];
 
-        Router::getInstance()->register(self::GetName(), 'duo-callback', [$this, 'EntryDuoCallback']);
+       Router::getInstance()->register(self::GetName(), 'duo-callback', [$this, 'EntryDuoCallback']);
 
         $this->subscribeEvent('Core::Login::after', [$this, 'onAfterLogin'], 200);
+        $this->subscribeEvent('Core::Logout::after', [$this, 'onAfterLogout'], 200);
     }
 
     protected function getClient()
@@ -99,10 +100,12 @@ class Module extends \Aurora\System\Module\AbstractModule
         if ($mResult && is_array($mResult) && isset($mResult['AuthToken'])) {
             $authToken = $mResult['AuthToken'];
             $oUser = Api::getAuthenticatedUser($mResult['AuthToken']);
+
             if ($oUser instanceof User) {
                 $username = $this->getDuoUserNameByUserPublicId($oUser->PublicId);
-
                 if (!empty($username)) {
+                    \Aurora\Modules\Core\Module::Decorator()->Logout();
+
                     $client = $this->getClient();
                     if ($client) {
                         try {
@@ -111,7 +114,7 @@ class Module extends \Aurora\System\Module\AbstractModule
                             Api::LogException($e);
                             $mResult = false;
                         }
-
+    
                         # Generate random string to act as a state for the exchange.
                         # Store it in the session to be later used by the callback.
                         # This example demonstrates use of the http session (cookie-based)
@@ -124,7 +127,6 @@ class Module extends \Aurora\System\Module\AbstractModule
 
                         # Redirect to prompt URI which will redirect to the client's redirect URI after 2FA
                         $mResult['DuoUri'] = $client->createAuthUrl($username, $state);
-                        unset($mResult['AuthToken']);
                     }
                 }
             }
@@ -155,10 +157,14 @@ class Module extends \Aurora\System\Module\AbstractModule
 
             $error = Enums\ErrorCodes::NoError;
 
-            $oUser = Api::getAuthenticatedUser($authToken);
-            if ($oUser) {
-                $username = $oUser->PublicId;
-                $username = $this->getDuoUserNameByUserPublicId($username);
+            $mAuthTokenData = Api::DecodeKeyValues($authToken);
+
+            $sPublicId = '';
+            if (isset($mAuthTokenData['id'])) {
+                $sPublicId = Api::getUserPublicIdById($mAuthTokenData['id']);
+            }
+            if ($sPublicId) {
+                $username = $this->getDuoUserNameByUserPublicId($sPublicId);
 
                 if (empty($saved_state) || empty($username)) {
                     # If the URL used to get to login.php is not localhost, (e.g. 127.0.0.1), then the sessions will be different
@@ -170,18 +176,10 @@ class Module extends \Aurora\System\Module\AbstractModule
                     try {
                         $client =  $this->getClient();
                         $decoded_token = $client->exchangeAuthorizationCodeFor2FAResult($code, $username);
-                        
-                        $iAuthTokenCookieExpireTime = (int) \Aurora\Modules\Core\Module::getInstance()->getModuleSettings()->AuthTokenCookieExpireTime;
-                        @\setcookie(
-                            \Aurora\System\Application::AUTH_TOKEN_KEY,
-                            $authToken,
-                            [
-                                'expires' => ($iAuthTokenCookieExpireTime === 0) ? 0 : \strtotime("+$iAuthTokenCookieExpireTime days"),
-                                'path' => Api::getCookiePath(),
-                                'secure' => Api::getCookieSecure(),
-                            ]
-                        );
+
+                        \Aurora\Modules\Core\Module::Decorator()->SetAuthDataAndGetAuthToken($mAuthTokenData);
                         Api::Location(\MailSo\Base\Http::SingletonInstance()->GetFullUrl());
+                        exit;
                     } catch (DuoException $e) {
                         $error = Enums\ErrorCodes::ErrorDecoding;
                         Api::LogException($e);
@@ -195,5 +193,15 @@ class Module extends \Aurora\System\Module\AbstractModule
         if ($error !== Enums\ErrorCodes::NoError) {
             Api::Location(\MailSo\Base\Http::SingletonInstance()->GetFullUrl() . '?error=' . $error . '&module=' . self::GetName());
         }
+    }
+
+    /**
+     * @param array $aArgs
+     * @param array $mResult
+     */
+    public function onAfterLogout($aArgs, &$mResult)
+    {
+        Session::clear("State");
+        Session::clear("AuthToken");
     }
 }
