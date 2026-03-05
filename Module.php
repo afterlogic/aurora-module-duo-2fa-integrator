@@ -14,6 +14,7 @@ use Duo\DuoUniversal\DuoException;
 use Aurora\System\Router;
 use Aurora\System\Session;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Aurora\System\Facades\Route;
 
 /**
  * @license https://www.gnu.org/licenses/agpl-3.0.html AGPL-3.0
@@ -62,7 +63,12 @@ class Module extends \Aurora\System\Module\AbstractModule
             Enums\ErrorCodes::NoAssociatedDuoUser => 'Duo user associated with current Aurora user is not found.',
         ];
 
-        Router::getInstance()->register(self::GetName(), 'duo-callback', [$this, 'EntryDuoCallback']);
+        Route::add(
+            $this,
+            [
+                'duo-callback', 'EntryDuoCallback'
+            ]
+        );
 
         $this->subscribeEvent('Core::Login::after', [$this, 'onAfterLogin'], 200);
         $this->subscribeEvent('Core::Logout::after', [$this, 'onAfterLogout'], 200);
